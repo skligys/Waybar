@@ -2,8 +2,9 @@
     border: none;
     border-radius: 0;
     /* `otf-font-awesome` is required to be installed for icons */
-    font-family: Roboto, Helvetica, Arial, sans-serif;
-    font-size: 13px;
+    font-family: Open Sans, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
     min-height: 0;
 }
 
@@ -69,7 +70,6 @@ window#waybar.chromium {
 #battery,
 #cpu,
 #memory,
-#disk,
 #temperature,
 #backlight,
 #network,
@@ -109,7 +109,7 @@ window#waybar.chromium {
     color: #000000;
 }
 
-#battery.charging, #battery.plugged {
+#battery.charging {
     color: #ffffff;
     background-color: #26A65B;
 }
@@ -142,10 +142,6 @@ label:focus {
 
 #memory {
     background-color: #9b59b6;
-}
-
-#disk {
-    background-color: #964B00;
 }
 
 #backlight {

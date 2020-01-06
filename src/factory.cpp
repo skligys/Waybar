@@ -39,6 +39,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name) const {
     if (ref == "idle_inhibitor") {
       return new waybar::modules::IdleInhibitor(id, bar_, config_[name]);
     }
+    if (ref == "gammastep") {
+      return new waybar::modules::Gammastep(id, bar_, config_[name]);
+    }
 #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
     if (ref == "memory") {
       return new waybar::modules::Memory(id, config_[name]);

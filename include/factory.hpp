@@ -25,6 +25,7 @@
 #include "modules/cpu.hpp"
 #endif
 #include "modules/idle_inhibitor.hpp"
+#include "modules/gammastep.hpp"
 #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
 #include "modules/memory.hpp"
 #endif

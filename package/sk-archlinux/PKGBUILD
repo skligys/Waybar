@@ -1,0 +1,61 @@
+# Maintainer: Skirmantas Kligys <Skirmantas.Kligys@gmail.com>
+
+pkgname=waybar-git-sk
+pkgver=r948.e9b0365
+pkgrel=1
+pkgdesc='Highly customizable Wayland bar for Sway and Wlroots based compositors (GIT), with SK patches'
+arch=('x86_64')
+url="https://github.com/Alexays/Waybar/"
+license=('MIT')
+provides=('waybar')
+conflicts=('waybar')
+depends=(
+    'gtk-layer-shell'
+    'gobject-introspection'
+    'gtkmm3'
+    'fmt'
+    'jsoncpp'
+    'libinput'
+    'libnl>=3.0'
+    'libsigc++>=2.0'
+    'wayland'
+    'libdbusmenu-gtk3'
+    'libappindicator-gtk3'
+    'libpulse'
+    'spdlog'
+)
+makedepends=(
+    'meson'
+    'git'
+)
+optdepends=(
+    'sway: Sway modules support'
+    'libmpdclient: Mpd module support'
+    'otf-font-awesome: Icons in the default configuration'
+)
+source=(
+    "${pkgname}::git://github.com/Alexays/Waybar"
+)
+sha256sums=(
+    'SKIP'
+)
+
+pkgver() {
+    cd "${srcdir}/${pkgname}"
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "${srcdir}/${pkgname}"
+}
+
+build() {
+    cd "${srcdir}/${pkgname}"
+    rm -rf "${srcdir}/build"
+    meson --prefix=/usr "${srcdir}/build"
+    ninja -C "${srcdir}/build"
+}
+
+package() {
+    DESTDIR="$pkgdir" ninja -C "${srcdir}/build" install
+}

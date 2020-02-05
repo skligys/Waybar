@@ -11,6 +11,18 @@
 #include <locale.h>
 #endif
 
+namespace {
+
+bool tooltip_has_calendar(const Json::Value& config) {
+  if (!config["tooltip-format"].isString()) return false;
+  const auto tooltip_format = config["tooltip-format"].asString();
+  bool contains_calendar = (tooltip_format.find("{calendar}") != std::string::npos) ||
+    (tooltip_format.find("{calendar_header}") != std::string::npos);
+  return contains_calendar;
+}
+
+}
+
 using waybar::modules::waybar_time;
 
 template <auto fn>
@@ -20,7 +32,8 @@ template <typename T, auto fn>
 using deleting_unique_ptr = std::unique_ptr<T, deleter_from_fn<fn>>;
 
 waybar::modules::Clock::Clock(const std::string& id, const Json::Value& config)
-    : ALabel(config, "clock", id, "{:%H:%M}", 60, false, false, true), fixed_time_zone_(false) {
+    : ALabel(config, "clock", id, "{:%H:%M}", 60, false, false, true), fixed_time_zone_(false),
+      tooltip_has_calendar_(tooltipEnabled() && tooltip_has_calendar(config)), calendar_month_offset_(0) {
   if (config_["timezone"].isString()) {
     spdlog::warn("As using a timezone, some format args may be missing as the date library havn't got a release since 2018.");
     time_zone_ = date::locate_zone(config_["timezone"].asString());
@@ -128,13 +141,41 @@ bool waybar::modules::Clock::handleScroll(GdkEventScroll *e) {
   return true;
 }
 
+auto waybar::modules::Clock::handleToggle(GdkEventButton* const& e) -> bool {
+  if (tooltip_has_calendar_) {
+    if (e->type == GDK_BUTTON_PRESS) {
+      switch (e->button) {
+        case 1: --calendar_month_offset_; break;
+        case 2: calendar_month_offset_ = 0; break;
+        case 3: ++calendar_month_offset_; break;
+      }
+      update();
+    }
+    return true;
+  } else {
+    return ALabel::handleToggle(e);
+  }
+}
+
 template<typename M>
 auto waybar::modules::Clock::calendar(const waybar_time& wtime, M&& month_name) -> Calendar {
   const auto daypoint = date::floor<date::days>(wtime.ztime.get_local_time());
   const auto ymd = date::year_month_day(daypoint);
+
+  if (calendar_month_offset_ != 0) {
+    const date::year_month curr_month = ymd.year()/ymd.month();
+    const date::year_month offset_month = (calendar_month_offset_ > 0) ?
+      (curr_month + date::months(calendar_month_offset_)) :
+      (curr_month - date::months(-calendar_month_offset_));
+    auto head = header(offset_month, month_name);
+    auto body_text = calendar_text(offset_month/0);
+    return Calendar{head, body_text};
+  }
+
   if (cached_calendar_ymd_ == ymd) {
     return cached_calendar_;
   }
+
   auto head = header(ymd.year()/ymd.month(), month_name);
   const Calendar calendar{head, calendar_text(ymd)};
   cached_calendar_ymd_ = ymd;
@@ -148,6 +189,7 @@ auto waybar::modules::Clock::header(const date::year_month& ym, M&& month_name) 
   return fmt::format("{} {}", year_string, month_name(unsigned(ym.month()) - 1));
 }
 
+// ymd.day() == day(0) means don't mark the current day.
 auto waybar::modules::Clock::calendar_text(const date::year_month_day& ymd) -> std::string const {
   const date::year_month ym = ymd.year()/ymd.month();
   const auto             curr_day = ymd.day();

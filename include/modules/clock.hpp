@@ -22,6 +22,7 @@ class Clock : public ALabel {
   Clock(const std::string&, const Json::Value&);
   ~Clock() = default;
   auto update() -> void;
+  auto handleToggle(GdkEventButton *const &e) -> bool;
 
  private:
   util::SleeperThread thread_;
@@ -37,6 +38,8 @@ class Clock : public ALabel {
   Calendar cached_calendar_;
   static constexpr int months_in_year_ = 12;
   std::array<const char *, months_in_year_> month_names_;
+  bool tooltip_has_calendar_;
+  int calendar_month_offset_;
 
   bool handleScroll(GdkEventScroll* e);
 

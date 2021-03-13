@@ -1,0 +1,207 @@
+diff --git a/include/factory.hpp b/include/factory.hpp
+index 1cae68c..cdf8a3e 100644
+--- a/include/factory.hpp
++++ b/include/factory.hpp
+@@ -25,6 +25,7 @@
+ #include "modules/cpu.hpp"
+ #endif
+ #include "modules/idle_inhibitor.hpp"
++#include "modules/gammastep.hpp"
+ #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
+ #include "modules/memory.hpp"
+ #endif
+diff --git a/include/modules/gammastep.hpp b/include/modules/gammastep.hpp
+new file mode 100644
+index 0000000..688d15d
+--- /dev/null
++++ b/include/modules/gammastep.hpp
+@@ -0,0 +1,22 @@
++#pragma once
++
++#include "ALabel.hpp"
++#include "bar.hpp"
++
++namespace waybar::modules {
++
++class Gammastep : public ALabel {
++ public:
++  Gammastep(const std::string&, const waybar::Bar&, const Json::Value&);
++  ~Gammastep();
++  void update();
++
++ private:
++  bool handleToggle(GdkEventButton* const& e);
++
++  const Bar&                    bar_;
++  int32_t                       pid_;
++  std::string                   status_;
++};
++
++}  // namespace waybar::modules
+diff --git a/include/util/command.hpp b/include/util/command.hpp
+index 3a38da3..9284de4 100644
+--- a/include/util/command.hpp
++++ b/include/util/command.hpp
+@@ -1,5 +1,8 @@
+ #pragma once
+ 
++#include <cctype>
++#include <filesystem>
++#include <fstream>
+ #include <giomm.h>
+ #include <spdlog/spdlog.h>
+ #include <sys/wait.h>
+@@ -156,4 +159,18 @@ inline int32_t forkExec(const std::string& cmd) {
+   return pid;
+ }
+ 
++// Returns -1 if not found.
++inline int32_t processByName(const std::string& name) {
++  namespace fs = std::filesystem;
++  for (const auto& e : fs::directory_iterator("/proc")) {
++    if (!e.is_directory()) continue;
++    if (!std::isdigit(e.path().filename().string().at(0))) continue;
++    std::ifstream comm(e.path() / "comm");
++    std::string line;
++    std::getline(comm, line);
++    if (line == name) return std::stoi(e.path().filename().string());
++  }
++  return -1;
++}
++
+ }  // namespace waybar::util::command
+diff --git a/meson.build b/meson.build
+index 2bb4e49..a7e5464 100644
+--- a/meson.build
++++ b/meson.build
+@@ -143,6 +143,7 @@ src_files = files(
+     'src/modules/custom.cpp',
+     'src/modules/disk.cpp',
+     'src/modules/idle_inhibitor.cpp',
++    'src/modules/gammastep.cpp',
+     'src/modules/temperature.cpp',
+     'src/main.cpp',
+     'src/bar.cpp',
+diff --git a/resources/config b/resources/config
+index 13dc94c..33b798b 100644
+--- a/resources/config
++++ b/resources/config
+@@ -6,7 +6,7 @@
+     // Choose the order of the modules
+     "modules-left": ["sway/workspaces", "sway/mode", "custom/media"],
+     "modules-center": ["sway/window"],
+-    "modules-right": ["mpd", "idle_inhibitor", "pulseaudio", "network", "cpu", "memory", "temperature", "backlight", "sway/language", "battery", "battery#bat2", "clock", "tray"],
++    "modules-right": ["mpd", "idle_inhibitor", "gammastep", "pulseaudio", "network", "cpu", "memory", "temperature", "backlight", "sway/language", "battery", "battery#bat2", "clock", "tray"],
+     // Modules configuration
+     // "sway/workspaces": {
+     //     "disable-scroll": true,
+@@ -59,6 +59,13 @@
+             "deactivated": ""
+         }
+     },
++    "gammastep": {
++        "format": "{icon}",
++        "format-icons": {
++            "activated": "",
++            "deactivated": ""
++        }
++    },
+     "tray": {
+         // "icon-size": 21,
+         "spacing": 10
+diff --git a/resources/style.css b/resources/style.css
+index 63ea871..7a075fd 100644
+--- a/resources/style.css
++++ b/resources/style.css
+@@ -78,6 +78,7 @@ window#waybar.chromium {
+ #tray,
+ #mode,
+ #idle_inhibitor,
++#gammastep,
+ #mpd {
+     padding: 0 10px;
+     margin: 0 4px;
+@@ -204,6 +205,16 @@ label:focus {
+     color: #2d3436;
+ }
+ 
++#gammastep {
++    background-color: #ecf0f1;
++    color: #2d3436;
++}
++
++#gammastep.activated {
++    background-color: #2d3436;
++    color: #ffffff;
++}
++
+ #mpd {
+     background-color: #66cc99;
+     color: #2a5c45;
+diff --git a/src/factory.cpp b/src/factory.cpp
+index 1f90789..cda3dd9 100644
+--- a/src/factory.cpp
++++ b/src/factory.cpp
+@@ -39,6 +39,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name) const {
+     if (ref == "idle_inhibitor") {
+       return new waybar::modules::IdleInhibitor(id, bar_, config_[name]);
+     }
++    if (ref == "gammastep") {
++      return new waybar::modules::Gammastep(id, bar_, config_[name]);
++    }
+ #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
+     if (ref == "memory") {
+       return new waybar::modules::Memory(id, config_[name]);
+diff --git a/src/modules/gammastep.cpp b/src/modules/gammastep.cpp
+new file mode 100644
+index 0000000..9e29c6e
+--- /dev/null
++++ b/src/modules/gammastep.cpp
+@@ -0,0 +1,47 @@
++#include <fmt/format.h>
++#include "modules/gammastep.hpp"
++#include "util/command.hpp"
++
++waybar::modules::Gammastep::Gammastep(const std::string& id, const Bar& bar,
++                                              const Json::Value& config)
++    : ALabel(config, "gammastep", id, "{status}"),
++      bar_(bar),
++      pid_(-1),
++      status_("deactivated") {
++  pid_ = util::command::processByName("gammastep");
++  if (pid_ >= 0) status_ = "activated";
++  event_box_.add_events(Gdk::BUTTON_PRESS_MASK);
++  event_box_.signal_button_press_event().connect(sigc::mem_fun(*this, &Gammastep::handleToggle));
++  dp.emit();
++}
++
++waybar::modules::Gammastep::~Gammastep() {
++  if (pid_ > 0) {
++    kill(-pid_, 9);
++  }
++}
++
++auto waybar::modules::Gammastep::update() -> void {
++  label_.set_markup(
++      fmt::format(format_, fmt::arg("status", status_), fmt::arg("icon", getIcon(0, status_))));
++  label_.get_style_context()->add_class(status_);
++  if (tooltipEnabled()) {
++    label_.set_tooltip_text(status_);
++  }
++}
++
++bool waybar::modules::Gammastep::handleToggle(GdkEventButton* const& e) {
++  if (e->button == 1) {
++    label_.get_style_context()->remove_class(status_);
++    if (pid_ > 0) {
++      kill(-pid_, 9);
++      pid_ = -1;
++      status_ = "deactivated";
++    } else {
++      pid_ = util::command::forkExec("gammastep -m wayland");
++      status_ = "activated";
++    }
++  }
++  ALabel::handleToggle(e);
++  return true;
++}

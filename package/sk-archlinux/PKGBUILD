@@ -10,6 +10,7 @@ license=('MIT')
 provides=('waybar')
 conflicts=('waybar')
 depends=(
+    'gammastep'
     'gtk-layer-shell'
     'gobject-introspection'
     'gtkmm3'
@@ -35,9 +36,11 @@ optdepends=(
 )
 source=(
     "${pkgname}::git://github.com/Alexays/Waybar"
+    'gammastep.patch'
 )
 sha256sums=(
     'SKIP'
+    'bbf35e0737f8ed08ad7fc7f4148d0e87b33a680a1cb9dd194e6c4e9c4baaa7e6'
 )
 
 pkgver() {
@@ -47,6 +50,7 @@ pkgver() {
 
 prepare() {
     cd "${srcdir}/${pkgname}"
+    patch --forward --strip=1 --input="${srcdir}/gammastep.patch"
 }
 
 build() {

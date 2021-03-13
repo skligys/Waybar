@@ -13,6 +13,12 @@
 
 using waybar::modules::waybar_time;
 
+template <auto fn>
+using deleter_from_fn = std::integral_constant<decltype(fn), fn>;
+
+template <typename T, auto fn>
+using deleting_unique_ptr = std::unique_ptr<T, deleter_from_fn<fn>>;
+
 waybar::modules::Clock::Clock(const std::string& id, const Json::Value& config)
     : ALabel(config, "clock", id, "{:%H:%M}", 60, false, false, true), fixed_time_zone_(false) {
   if (config_["timezone"].isString()) {
@@ -25,6 +31,21 @@ waybar::modules::Clock::Clock(const std::string& id, const Json::Value& config)
     locale_ = std::locale(config_["locale"].asString());
   } else {
     locale_ = std::locale("");
+  }
+
+  {
+    // Load full month names from glibc.  Date format %B does not work for month name.
+    deleting_unique_ptr<std::remove_pointer<locale_t>::type, freelocale>
+      posix_locale{newlocale(LC_ALL, locale_.name().c_str(), nullptr)};
+    if (posix_locale) {
+      for (int i = 0; i < months_in_year_; ++i) {
+        month_names_[i] = nl_langinfo_l(ALTMON_1 + i, posix_locale.get());
+      }
+    } else {
+      for (int i = 0; i < months_in_year_; ++i) {
+        month_names_[i] = nl_langinfo(ALTMON_1 + i);
+      }
+    }
   }
 
   thread_ = [this] {
@@ -60,9 +81,12 @@ auto waybar::modules::Clock::update() -> void {
 
   if (tooltipEnabled()) {
     if (config_["tooltip-format"].isString()) {
-      const auto calendar = calendar_text(wtime);
       auto       tooltip_format = config_["tooltip-format"].asString();
-      auto       tooltip_text = fmt::format(tooltip_format, wtime, fmt::arg("calendar", calendar));
+      const auto cal = calendar(wtime, [this](int month_idx) {
+        return std::string(month_names_[month_idx]);
+      });
+      auto       tooltip_text = fmt::format(tooltip_format, wtime,
+        fmt::arg("calendar_header", cal.header), fmt::arg("calendar", cal.text));
       label_.set_tooltip_markup(tooltip_text);
     } else {
       label_.set_tooltip_markup(text);
@@ -104,14 +128,28 @@ bool waybar::modules::Clock::handleScroll(GdkEventScroll *e) {
   return true;
 }
 
-auto waybar::modules::Clock::calendar_text(const waybar_time& wtime) -> std::string {
+template<typename M>
+auto waybar::modules::Clock::calendar(const waybar_time& wtime, M&& month_name) -> Calendar {
   const auto daypoint = date::floor<date::days>(wtime.ztime.get_local_time());
   const auto ymd = date::year_month_day(daypoint);
   if (cached_calendar_ymd_ == ymd) {
-    return cached_calendar_text_;
+    return cached_calendar_;
   }
+  auto head = header(ymd.year()/ymd.month(), month_name);
+  const Calendar calendar{head, calendar_text(ymd)};
+  cached_calendar_ymd_ = ymd;
+  cached_calendar_ = calendar;
+  return calendar;
+}
 
-  const date::year_month ym(ymd.year(), ymd.month());
+template<typename M>
+auto waybar::modules::Clock::header(const date::year_month& ym, M&& month_name) -> std::string const {
+  auto year_string = date::format(locale_, "%Y", ym.year());
+  return fmt::format("{} {}", year_string, month_name(unsigned(ym.month()) - 1));
+}
+
+auto waybar::modules::Clock::calendar_text(const date::year_month_day& ymd) -> std::string const {
+  const date::year_month ym = ymd.year()/ymd.month();
   const auto             curr_day = ymd.day();
 
   std::stringstream os;
@@ -145,12 +183,12 @@ auto waybar::modules::Clock::calendar_text(const waybar_time& wtime) -> std::str
 
   auto result = os.str();
   cached_calendar_ymd_ = ymd;
-  cached_calendar_text_ = result;
+  cached_calendar_.text = result;
   return result;
 }
 
 auto waybar::modules::Clock::weekdays_header(const date::weekday& first_dow, std::ostream& os)
-    -> void {
+    -> void const {
   auto wd = first_dow;
   do {
     if (wd != first_dow) os << ' ';
@@ -168,16 +206,8 @@ auto waybar::modules::Clock::weekdays_header(const date::weekday& first_dow, std
   os << "\n";
 }
 
-#ifdef HAVE_LANGINFO_1STDAY
-template <auto fn>
-using deleter_from_fn = std::integral_constant<decltype(fn), fn>;
-
-template <typename T, auto fn>
-using deleting_unique_ptr = std::unique_ptr<T, deleter_from_fn<fn>>;
-#endif
-
 // Computations done similarly to Linux cal utility.
-auto waybar::modules::Clock::first_day_of_week() -> date::weekday {
+auto waybar::modules::Clock::first_day_of_week() -> date::weekday const {
 #ifdef HAVE_LANGINFO_1STDAY
   deleting_unique_ptr<std::remove_pointer<locale_t>::type, freelocale> posix_locale{
       newlocale(LC_ALL, locale_.name().c_str(), nullptr)};

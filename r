@@ -1,2 +1,5 @@
 #!/bin/bash
+LANG=lt_LT.utf8
+# LANG=ru_RU.utf8
+cal -3
 XDG_CURRENT_DESKTOP=Unity ./build/waybar --config test.config --style test.style.css

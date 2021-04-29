@@ -37,10 +37,12 @@ optdepends=(
 source=(
     "${pkgname}::git://github.com/Alexays/Waybar"
     'gammastep.patch'
+    'calendar.patch'
 )
 sha256sums=(
     'SKIP'
     'bbf35e0737f8ed08ad7fc7f4148d0e87b33a680a1cb9dd194e6c4e9c4baaa7e6'
+    'f78888c661221145c7048e4784698584de61d049176a267cff8576c1b1b354fb'
 )
 
 pkgver() {
@@ -51,6 +53,7 @@ pkgver() {
 prepare() {
     cd "${srcdir}/${pkgname}"
     patch --forward --strip=1 --input="${srcdir}/gammastep.patch"
+    patch --forward --strip=1 --input="${srcdir}/calendar.patch"
 }
 
 build() {

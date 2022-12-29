@@ -2,6 +2,7 @@
 
 #include "ALabel.hpp"
 #include "bar.hpp"
+#include "util/sleeper_thread.hpp"
 
 namespace waybar::modules {
 
@@ -13,10 +14,12 @@ class Gammastep : public ALabel {
 
  private:
   bool handleToggle(GdkEventButton* const& e);
+  void killChildProcess();
 
   const Bar&                    bar_;
   int32_t                       pid_;
   std::string                   status_;
+  util::SleeperThread thread_;
 };
 
 }  // namespace waybar::modules

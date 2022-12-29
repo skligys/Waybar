@@ -110,7 +110,8 @@
         "format-icons": {
             "activated": "",
             "deactivated": ""
-        }
+        },
+        "interval": 5
     },
     "tray": {
         // "icon-size": 21,

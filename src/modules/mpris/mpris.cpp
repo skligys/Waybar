@@ -36,6 +36,9 @@ Mpris::Mpris(const std::string& id, const Json::Value& config)
       manager(),
       player(),
       last_update_(std::chrono::system_clock::now() - interval_) {
+  // SK: debug.
+  spdlog::info("----- Mpris::Mpris(this: {})", fmt::ptr(this));
+
   if (config_["format-playing"].isString()) {
     format_playing_ = config_["format-playing"].asString();
   }
@@ -178,6 +181,9 @@ Mpris::Mpris(const std::string& id, const Json::Value& config)
 }
 
 Mpris::~Mpris() {
+  // SK: debug.
+  spdlog::info("----- Mpris::~Mpris(this: {})", fmt::ptr(this));
+
   if (manager != nullptr) g_object_unref(manager);
   if (player != nullptr) g_object_unref(player);
 }
@@ -456,6 +462,9 @@ auto Mpris::onPlayerPause(PlayerctlPlayer* player, gpointer data) -> void {
 auto Mpris::onPlayerStop(PlayerctlPlayer* player, gpointer data) -> void {
   auto* mpris = static_cast<Mpris*>(data);
   if (!mpris) return;
+
+  // SK: debug.
+  spdlog::info("----- Mpris::onPlayerStop(this: {})", fmt::ptr(mpris));
 
   spdlog::debug("mpris: player-stop callback");
 

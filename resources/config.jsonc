@@ -18,6 +18,7 @@
     "modules-right": [
         "mpd",
         "idle_inhibitor",
+        "gammastep",
         "pulseaudio",
         "network",
         "power-profiles-daemon",
@@ -102,6 +103,13 @@
         "format-icons": {
             "activated": "",
             "deactivated": ""
+        }
+    },
+    "gammastep": {
+        "format": "{icon}",
+        "format-icons": {
+            "activated": "",
+            "deactivated": ""
         }
     },
     "tray": {

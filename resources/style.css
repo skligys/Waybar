@@ -94,6 +94,7 @@ button:hover {
 #idle_inhibitor,
 #scratchpad,
 #power-profiles-daemon,
+#gammastep,
 #mpd {
     padding: 0 10px;
     color: #ffffff;
@@ -262,6 +263,16 @@ label:focus {
 #idle_inhibitor.activated {
     background-color: #ecf0f1;
     color: #2d3436;
+}
+
+#gammastep {
+    background-color: #ecf0f1;
+    color: #2d3436;
+}
+
+#gammastep.activated {
+    background-color: #2d3436;
+    color: #ffffff;
 }
 
 #mpd {

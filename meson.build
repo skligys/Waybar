@@ -165,6 +165,7 @@ src_files = files(
     'src/AAppIconLabel.cpp',
     'src/modules/custom.cpp',
     'src/modules/disk.cpp',
+    'src/modules/gammastep.cpp',
     'src/modules/idle_inhibitor.cpp',
     'src/modules/image.cpp',
     'src/modules/load.cpp',

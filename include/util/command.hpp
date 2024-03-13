@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <fcntl.h>
 #include <giomm.h>
 #include <spdlog/spdlog.h>
@@ -167,6 +170,20 @@ inline int32_t forkExec(const std::string& cmd) {
   }
 
   return pid;
+}
+
+// Returns -1 if not found.
+inline int32_t processByName(const std::string& name) {
+  namespace fs = std::filesystem;
+  for (const auto& e : fs::directory_iterator("/proc")) {
+    if (!e.is_directory()) continue;
+    if (!std::isdigit(e.path().filename().string().at(0))) continue;
+    std::ifstream comm(e.path() / "comm");
+    std::string line;
+    std::getline(comm, line);
+    if (line == name) return std::stoi(e.path().filename().string());
+  }
+  return -1;
 }
 
 }  // namespace waybar::util::command

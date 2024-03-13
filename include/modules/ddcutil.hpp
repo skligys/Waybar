@@ -20,6 +20,7 @@ class DdcUtil : public ALabel {
   bool handleToggle(GdkEventButton* const& e);
 
   const Bar&            bar_;
+  int                   i2c_bus_;
   std::string           status_;
   util::SleeperThread   thread_;
   std::mutex            ddc_mutex_;

@@ -93,6 +93,7 @@ button:hover {
 #idle_inhibitor,
 #scratchpad,
 #systemd-failed-units,
+#gammastep,
 #mpd {
     padding: 0px 6px;
     margin: 0px 1px;
@@ -247,6 +248,16 @@ label:focus {
 #systemd-failed-units.degraded {
     background-color: #FF0000;
     color: #FFFFFF;
+}
+
+#gammastep {
+    background-color: #ecf0f1;
+    color: #2d3436;
+}
+
+#gammastep.activated {
+    background-color: #2d3436;
+    color: #ffffff;
 }
 
 #mpd {

@@ -117,7 +117,11 @@ waybar::modules::DdcUtil::DdcUtil(const std::string& id, const Bar& bar,
                                               const Json::Value& config)
     : ALabel(config, "ddcutil", id, "{status}", 5),
       bar_(bar),
+      i2c_bus_(config_["bus"].isUInt() ? config_["bus"].asUInt() : -1),
       status_("starting") {
+  if (i2c_bus_ < 0) {
+    throw std::runtime_error("Specify the I2C bus");
+  }
   // Report DDC/CI errors to stderr.
   ddca_init("--ddc", DDCA_SYSLOG_ERROR, DDCA_INIT_OPTIONS_DISABLE_CONFIG_FILE);
   event_box_.add_events(Gdk::BUTTON_PRESS_MASK);
@@ -134,7 +138,7 @@ void waybar::modules::DdcUtil::worker() {
     const std::string prev_class = source_to_class(status_);
     {
       std::lock_guard<std::mutex> guard(ddc_mutex_);
-      status_ = get_input_source(7);
+      status_ = get_input_source(i2c_bus_);
     }
     const std::string curr_class = source_to_class(status_);
     if (prev_class != curr_class) {
@@ -168,7 +172,7 @@ bool waybar::modules::DdcUtil::handleToggle(GdkEventButton* const& e) {
       return true;
     }
 
-    const std::string input_source = set_input_source(7, target_input);
+    const std::string input_source = set_input_source(i2c_bus_, target_input);
     if (input_source != "???") {
       const std::string prev_class = source_to_class(status_);
       status_ = input_source;

@@ -118,6 +118,12 @@
         "format": "{status} 🖥️",
         "bus": 8,
         "interval": 5,
+        "input-names": {
+             "0x0F": "DP2",
+             "0x10": "DP1",
+             "0x11": "HDMI1",
+             "0x12": "HDMI2",
+        }
     },
     "tray": {
         // "icon-size": 21,

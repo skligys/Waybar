@@ -7,6 +7,24 @@
 
 namespace {
 
+std::map<uint16_t, std::string> parse_input_names(const Json::Value& config) {
+  std::map<uint16_t, std::string> result;
+  if (config["input-names"].isObject()) {
+    const Json::Value& input_names = config["input-names"];
+    // Cannot do range-based iteration since no way to access value's key there.
+    for (auto it = input_names.begin(); it != input_names.end(); ++it) {
+      if (!it.key().isString()) throw std::runtime_error("Input names key should be a string");
+      if (!it->isString()) throw std::runtime_error("Input names value should be a string");
+      const std::string key = it.key().asString();
+      const std::string value = it->asString();
+      const unsigned long key_ul = std::stoul(key, nullptr, 0);
+      if (key_ul > UINT16_MAX) throw std::runtime_error("Input names key out of range");
+      result.emplace(static_cast<uint16_t>(key_ul), value);
+    }
+  }
+  return result;
+}
+
 struct DisplayIdDeleter {
   void operator()(DDCA_Display_Identifier* display_id) {
     const DDCA_Status rc = ddca_free_display_identifier(*display_id);
@@ -45,21 +63,49 @@ std::unique_ptr<DDCA_Display_Handle, DisplayHandleCloser> open_display(const DDC
   return display_handle;
 }
 
-std::string input_source_name(uint16_t input) {
-  switch (input) {
-    case 0x0F: return "DP2";
-    case 0x10: return "DP1";
-    case 0x11: return "HDMI1";
-    case 0x12: return "HDMI2";
-    default: return "???";
-  }
+std::string source_to_class(const std::string& source) {
+  if (source == "DP1") return "primary";
+  else if (source == "DP2") return "secondary";
+  else return "error";
 }
 
-std::string get_input_source(int bus_no) {
+}
+
+waybar::modules::DdcUtil::DdcUtil(const std::string& id, const Bar& bar,
+                                              const Json::Value& config)
+    : ALabel(config, "ddcutil", id, "{status}", 5),
+      bar_(bar),
+      i2c_bus_(config_["bus"].isUInt() ? config_["bus"].asUInt() : -1),
+      input_name_(parse_input_names(config)),
+      status_("starting") {
+  if (i2c_bus_ < 0) {
+    throw std::runtime_error("Specify the I2C bus");
+  }
+  if (input_name_.empty()) {
+    throw std::runtime_error("Specify input names");
+  }
+  // Report DDC/CI errors to stderr.
+  ddca_init("--ddc", DDCA_SYSLOG_ERROR, DDCA_INIT_OPTIONS_DISABLE_CONFIG_FILE);
+  event_box_.add_events(Gdk::BUTTON_PRESS_MASK);
+  event_box_.signal_button_press_event().connect(sigc::mem_fun(*this, &DdcUtil::handleToggle));
+  worker();
+}
+
+waybar::modules::DdcUtil::~DdcUtil() {
+  // TODO if needed
+}
+
+std::string waybar::modules::DdcUtil::input_source_name(uint16_t input) const {
+  const auto it = input_name_.find(input);
+  if (it == input_name_.end()) return "???";
+  return it->second;
+}
+
+std::string waybar::modules::DdcUtil::get_input_source() const {
   ddca_enable_verify(true);
   const std::string failed = "???";
 
-  const auto display_id = display_id_from_busno(bus_no);
+  const auto display_id = display_id_from_busno(i2c_bus_);
   if (!display_id) return failed;
   // Display refs are pre-allocated and don't need to be freed.
   DDCA_Display_Ref display_ref;
@@ -80,17 +126,11 @@ std::string get_input_source(int bus_no) {
   return input_source_name(value.sh << 8 | value.sl);
 }
 
-std::string source_to_class(const std::string& source) {
-  if (source == "DP1") return "primary";
-  else if (source == "DP2") return "secondary";
-  else return "error";
-}
-
-std::string set_input_source(int bus_no, uint8_t target_input) {
+std::string waybar::modules::DdcUtil::set_input_source(uint8_t target_input) const {
   ddca_enable_verify(true);
   const std::string failed = "???";
 
-  const auto display_id = display_id_from_busno(bus_no);
+  const auto display_id = display_id_from_busno(i2c_bus_);
   if (!display_id) return failed;
   // Display refs are pre-allocated and don't need to be freed.
   DDCA_Display_Ref display_ref;
@@ -111,34 +151,12 @@ std::string set_input_source(int bus_no, uint8_t target_input) {
   return input_source_name(target_input);
 }
 
-}
-
-waybar::modules::DdcUtil::DdcUtil(const std::string& id, const Bar& bar,
-                                              const Json::Value& config)
-    : ALabel(config, "ddcutil", id, "{status}", 5),
-      bar_(bar),
-      i2c_bus_(config_["bus"].isUInt() ? config_["bus"].asUInt() : -1),
-      status_("starting") {
-  if (i2c_bus_ < 0) {
-    throw std::runtime_error("Specify the I2C bus");
-  }
-  // Report DDC/CI errors to stderr.
-  ddca_init("--ddc", DDCA_SYSLOG_ERROR, DDCA_INIT_OPTIONS_DISABLE_CONFIG_FILE);
-  event_box_.add_events(Gdk::BUTTON_PRESS_MASK);
-  event_box_.signal_button_press_event().connect(sigc::mem_fun(*this, &DdcUtil::handleToggle));
-  worker();
-}
-
-waybar::modules::DdcUtil::~DdcUtil() {
-  // TODO if needed
-}
-
 void waybar::modules::DdcUtil::worker() {
   thread_ = [this] {
     const std::string prev_class = source_to_class(status_);
     {
       std::lock_guard<std::mutex> guard(ddc_mutex_);
-      status_ = get_input_source(i2c_bus_);
+      status_ = get_input_source();
     }
     const std::string curr_class = source_to_class(status_);
     if (prev_class != curr_class) {
@@ -172,7 +190,7 @@ bool waybar::modules::DdcUtil::handleToggle(GdkEventButton* const& e) {
       return true;
     }
 
-    const std::string input_source = set_input_source(i2c_bus_, target_input);
+    const std::string input_source = set_input_source(target_input);
     if (input_source != "???") {
       const std::string prev_class = source_to_class(status_);
       status_ = input_source;

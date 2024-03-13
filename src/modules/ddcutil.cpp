@@ -89,8 +89,6 @@ waybar::modules::DdcUtil::DdcUtil(const std::string& id, const Bar& bar,
   if (input_name_.empty()) {
     throw std::runtime_error("Specify input names");
   }
-  // Report DDC/CI errors to stderr.
-  ddca_init("--ddc", DDCA_SYSLOG_ERROR, DDCA_INIT_OPTIONS_DISABLE_CONFIG_FILE);
   event_box_.add_events(Gdk::BUTTON_PRESS_MASK);
   event_box_.signal_button_press_event().connect(sigc::mem_fun(*this, &DdcUtil::handleToggle));
   worker();
@@ -107,6 +105,7 @@ std::string waybar::modules::DdcUtil::input_source_name(uint8_t input) const {
 }
 
 uint8_t waybar::modules::DdcUtil::get_input_source() const {
+  ddca_enable_report_ddc_errors(true);
   ddca_enable_verify(true);
   const uint8_t failed = UINT8_MAX;
 
@@ -132,6 +131,7 @@ uint8_t waybar::modules::DdcUtil::get_input_source() const {
 }
 
 uint8_t waybar::modules::DdcUtil::set_input_source(uint8_t target_input) const {
+  ddca_enable_report_ddc_errors(true);
   ddca_enable_verify(true);
   const uint8_t failed = UINT8_MAX;
 

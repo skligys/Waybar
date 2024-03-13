@@ -18,9 +18,13 @@ class DdcUtil : public ALabel {
  private:
   void worker();
   bool handleToggle(GdkEventButton* const& e);
+  std::string input_source_name(uint16_t input) const;
+  std::string get_input_source() const;
+  std::string set_input_source(uint8_t target_input) const;
 
   const Bar&            bar_;
-  int                   i2c_bus_;
+  const int             i2c_bus_;
+  const std::map<uint16_t, std::string> input_name_;
   std::string           status_;
   util::SleeperThread   thread_;
   std::mutex            ddc_mutex_;

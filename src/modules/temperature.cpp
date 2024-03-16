@@ -34,7 +34,18 @@ auto sensor_name_from_temp_file_path(const std::string file_path) -> std::string
   } else {
     // hwmon configuration
     const std::string name_path = p.replace_filename("name").string();
-    return read_file_line(name_path);
+    const std::string name = read_file_line(name_path);
+
+    std::string label;
+    if (file_path.ends_with("_input")) {
+      std::string label_path = file_path;
+      const std::size_t len = label_path.length();
+      const std::size_t to_replace_len = std::string("_input").length();
+      label_path.replace(len - to_replace_len, to_replace_len, "_label");
+      label = read_file_line(label_path);
+    }
+
+    return label.empty() ? name : fmt::format("{} {}", name, label);
   }
 }
 

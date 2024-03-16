@@ -145,7 +145,7 @@ Addressed by *temperature*
 
 *{temperatureK}*: Temperature in Kelvin.
 
-*{name}*: Sensor name.
+*{name}*: Sensor name, may contain both the kernel module name and a measurement label.
 
 # EXAMPLES
 

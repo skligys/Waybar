@@ -94,6 +94,7 @@ xkbregistry = dependency('xkbregistry')
 libjack = dependency('jack', required: get_option('jack'))
 libwireplumber = dependency('wireplumber-0.5', required: get_option('wireplumber'))
 libgps = dependency('libgps', required: get_option('gps'))
+ddcutil = dependency('ddcutil', version : '>=1.1.0')
 
 libsndio = compiler.find_library('sndio', required: get_option('sndio'))
 if libsndio.found()
@@ -164,6 +165,7 @@ src_files = files(
     'src/AIconLabel.cpp',
     'src/AAppIconLabel.cpp',
     'src/modules/custom.cpp',
+    'src/modules/ddcutil.cpp',
     'src/modules/disk.cpp',
     'src/modules/gammastep.cpp',
     'src/modules/idle_inhibitor.cpp',
@@ -553,9 +555,10 @@ executable(
         gtk_layer_shell,
         libsndio,
         tz_dep,
-		xkbregistry,
+        xkbregistry,
         cava,
-        libgps
+        libgps,
+        ddcutil
     ],
     include_directories: inc_dirs,
     install: true,

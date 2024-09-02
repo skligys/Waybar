@@ -288,7 +288,7 @@
 		}
     },
     "gpu": {
-      "format": "G {busy}% {temperature_c}°C {fan_krpms:.1f}k⟳",
+      "format": "G {busy_history}{busy}% {temperature_history}{temperature_c}°C {fan_history}{fan_krpms:.1f}k⟳",
       "interval": 5
     }
 }

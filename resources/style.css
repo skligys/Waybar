@@ -95,6 +95,7 @@ button:hover {
 #scratchpad,
 #power-profiles-daemon,
 #gammastep,
+#ddcutil,
 #mpd {
     padding: 0 10px;
     color: #ffffff;
@@ -273,6 +274,26 @@ label:focus {
 #gammastep.activated {
     background-color: #2d3436;
     color: #ffffff;
+}
+
+#ddcutil {
+    background-color: #00b093;
+    color: #740864;
+}
+
+#ddcutil.primary {
+    color: #2a5c45;
+    background-color: #51a37a;
+}
+
+#ddcutil.secondary {
+    color: #2a5c45;
+    background-color: #66cc99;
+}
+
+#ddcutil.error {
+    color: #2a5c45;
+    background-color: #f53c3c;
 }
 
 #mpd {

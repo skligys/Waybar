@@ -57,6 +57,7 @@
 #endif
 #include "modules/idle_inhibitor.hpp"
 #include "modules/gammastep.hpp"
+#include "modules/ddcutil.hpp"
 #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
 #include "modules/memory.hpp"
 #endif
@@ -247,6 +248,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
     }
     if (ref == "gammastep") {
       return new waybar::modules::Gammastep(id, bar_, config_[name]);
+    }
+    if (ref == "ddcutil") {
+      return new waybar::modules::DdcUtil(id, bar_, config_[name]);
     }
 #if defined(HAVE_MEMORY_LINUX) || defined(HAVE_MEMORY_BSD)
     if (ref == "memory") {

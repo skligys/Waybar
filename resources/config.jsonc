@@ -19,6 +19,7 @@
         "mpd",
         "idle_inhibitor",
         "gammastep",
+        "ddcutil",
         "pulseaudio",
         "network",
         "power-profiles-daemon",
@@ -111,6 +112,10 @@
             "activated": "",
             "deactivated": ""
         },
+        "interval": 5
+    },
+    "ddcutil": {
+        "format": "{status} 🖥️",
         "interval": 5
     },
     "tray": {

@@ -20,6 +20,7 @@ class Temperature : public ALabel {
   bool isCritical(uint16_t);
   bool isWarning(uint16_t);
 
+  std::string sensor_name_;
   std::string file_path_;
   util::SleeperThread thread_;
 };

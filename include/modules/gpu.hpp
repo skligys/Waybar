@@ -41,12 +41,16 @@ class Gpu : public ALabel {
   void update();
 
  private:
-  int                 getUsage();
-  int                 getTemperature();
-  float               getFanKiloRpms();
+  int                  getBusyPercent();
+  int                  getTemperature();
+  float                getFanKiloRpms();
 
-  std::string         file_path_;
-  util::SleeperThread thread_;
+  std::string          file_path_;
+  util::SleeperThread  thread_;
+  static constexpr int HISTORY_LEN = 6;
+  Ring<9, HISTORY_LEN> busy_history_;
+  Ring<9, HISTORY_LEN> temperature_history_;
+  Ring<9, HISTORY_LEN> fan_history_;
 };
 
 }  // namespace waybar::modules

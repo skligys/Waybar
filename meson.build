@@ -168,6 +168,7 @@ src_files = files(
     'src/modules/ddcutil.cpp',
     'src/modules/disk.cpp',
     'src/modules/gammastep.cpp',
+    'src/modules/gpu.cpp',
     'src/modules/idle_inhibitor.cpp',
     'src/modules/image.cpp',
     'src/modules/load.cpp',

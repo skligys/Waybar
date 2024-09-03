@@ -96,6 +96,7 @@ button:hover {
 #power-profiles-daemon,
 #gammastep,
 #ddcutil,
+#gpu,
 #mpd {
     padding: 0 10px;
     color: #ffffff;
@@ -294,6 +295,10 @@ label:focus {
 #ddcutil.error {
     color: #2a5c45;
     background-color: #f53c3c;
+}
+
+#gpu {
+    background: #720823;
 }
 
 #mpd {

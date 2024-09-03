@@ -19,6 +19,7 @@
         "mpd",
         "idle_inhibitor",
         "gammastep",
+        "gpu",
         "ddcutil",
         "pulseaudio",
         "network",
@@ -285,5 +286,9 @@
 			"suspend": "systemctl suspend",
 			"hibernate": "systemctl hibernate"
 		}
+    },
+    "gpu": {
+      "format": "G {busy}% {temperature_c}°C {fan_krpms:.1f}k⟳",
+      "interval": 5
     }
 }

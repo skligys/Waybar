@@ -93,6 +93,7 @@ button:hover {
 #scratchpad,
 #gammastep,
 #ddcutil,
+#gpu,
 #mpd {
     padding: 0px 6px;
     margin: 0px 1px;
@@ -265,6 +266,10 @@ label:focus {
 #ddcutil.error {
     color: #2a5c45;
     background-color: #f53c3c;
+}
+
+#gpu {
+    background: #720823;
 }
 
 #mpd {

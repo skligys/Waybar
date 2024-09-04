@@ -56,12 +56,14 @@ source=(
     'gammastep.patch'
     'ddcutil.patch'
     'gpu.patch'
+    'temperature.patch'
 )
 sha256sums=(
     '11a4cfd97b99a09e030f37148c2e68ed05a9e1340ad3bd94d869b5bcc1369bd0'
     '019c03900e8b6bc2a3f2b4d485baf79ff068b988bd8521d7a6a4960fe9a369d1'
     '71af9d0b60696c4d425686924347d72ee801813b57fa26d40aebb030cb8a5a96'
     '8afb7180bd27cad191e8cc99f6e79766c3da60515147c3770a618831619462b6'
+    '748e551e5a7bc8de6a177ea7d56425f57c5dc6cf65eb3a105afef69c38adff83'
 )
 
 pkgver() {
@@ -74,6 +76,7 @@ prepare() {
     patch --forward --strip=1 --input="${srcdir}/gammastep.patch"
     patch --forward --strip=1 --input="${srcdir}/ddcutil.patch"
     patch --forward --strip=1 --input="${srcdir}/gpu.patch"
+    patch --forward --strip=1 --input="${srcdir}/temperature.patch"
 }
 
 build() {

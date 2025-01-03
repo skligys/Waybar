@@ -35,6 +35,7 @@ depends=(
     'playerctl'
     # SK added:
     'gammastep'
+    'ddcutil'
 )
 makedepends=(
     'cmake'
@@ -53,10 +54,12 @@ optdepends=(
 source=(
     "${pkgname}::git+https://github.com/Alexays/Waybar#commit=41de8964f1e3278edf07902ad68ca5e01e7abeeb"
     'gammastep.patch'
+    'ddcutil.patch'
 )
 sha256sums=(
     '0a492b34a51ccf5ec1afc3b561648f49111775ff606383aacba17a10da0baf84'
     'a65c4792d29722416dad38f9124c58474c179a211868b33b42d93cbf3c7a1005'
+    '7bae0307ef6953ba3891be301a81d72593bb4e993bd8cf4e18bc9d9de4743183'
 )
 
 pkgver() {
@@ -67,6 +70,7 @@ pkgver() {
 prepare() {
     cd "${srcdir}/${pkgname}"
     patch --forward --strip=1 --input="${srcdir}/gammastep.patch"
+    patch --forward --strip=1 --input="${srcdir}/ddcutil.patch"
 }
 
 build() {

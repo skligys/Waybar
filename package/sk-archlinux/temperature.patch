@@ -1,0 +1,192 @@
+From e8f1f6f9ceb40c74aba99a9bd1b261f8f8e9c6e1 Mon Sep 17 00:00:00 2001
+From: Skirmantas Kligys <Skirmantas.Kligys@gmail.com>
+Date: Mon, 2 Sep 2024 13:03:15 -0700
+Subject: [PATCH 1/2] Temperature module adds {name} format replacement.
+
+---
+ include/modules/temperature.hpp |  1 +
+ man/waybar-temperature.5.scd    |  2 ++
+ src/modules/temperature.cpp     | 63 ++++++++++++++++++++-------------
+ 3 files changed, 42 insertions(+), 24 deletions(-)
+
+diff --git a/include/modules/temperature.hpp b/include/modules/temperature.hpp
+index 918281be..63c91a33 100644
+--- a/include/modules/temperature.hpp
++++ b/include/modules/temperature.hpp
+@@ -20,6 +20,7 @@ class Temperature : public ALabel {
+   bool isCritical(uint16_t);
+   bool isWarning(uint16_t);
+ 
++  std::string sensor_name_;
+   std::string file_path_;
+   util::SleeperThread thread_;
+ };
+diff --git a/man/waybar-temperature.5.scd b/man/waybar-temperature.5.scd
+index 923d643d..1839243c 100644
+--- a/man/waybar-temperature.5.scd
++++ b/man/waybar-temperature.5.scd
+@@ -145,6 +145,8 @@ Addressed by *temperature*
+ 
+ *{temperatureK}*: Temperature in Kelvin.
+ 
++*{name}*: Sensor name.
++
+ # EXAMPLES
+ 
+ ```
+diff --git a/src/modules/temperature.cpp b/src/modules/temperature.cpp
+index 89d3db2d..8580d253 100644
+--- a/src/modules/temperature.cpp
++++ b/src/modules/temperature.cpp
+@@ -7,6 +7,38 @@
+ #include <sys/sysctl.h>
+ #endif
+ 
++namespace {
++
++auto read_file_line(const std::string file_path) -> std::string {
++  std::ifstream name_stream(file_path);
++  if (!name_stream.is_open()) {
++    throw std::runtime_error("Can't open " + file_path);
++  }
++  std::string line;
++  if (!name_stream.good()) {
++    name_stream.close();
++    throw std::runtime_error("Can't read from " + file_path);
++  }
++  getline(name_stream, line);
++  name_stream.close();
++  return line;
++}
++
++auto sensor_name_from_temp_file_path(const std::string file_path) -> std::string {
++  std::filesystem::path p(file_path);
++  if (p.filename() == "temp") {
++    // thermal-zone configuration
++    const std::string type_path = p.replace_filename("type").string();
++    return read_file_line(type_path);
++  } else {
++    // hwmon configuration
++    const std::string name_path = p.replace_filename("name").string();
++    return read_file_line(name_path);
++  }
++}
++
++}
++
+ waybar::modules::Temperature::Temperature(const std::string& id, const Json::Value& config)
+     : ALabel(config, "temperature", id, "{temperatureC}°C", 10) {
+ #if defined(__FreeBSD__)
+@@ -45,16 +77,8 @@ waybar::modules::Temperature::Temperature(const std::string& id, const Json::Val
+     file_path_ = fmt::format("/sys/class/thermal/thermal_zone{}/temp", zone);
+   }
+ 
+-  // check if file_path_ can be used to retrive the temperature
+-  std::ifstream temp(file_path_);
+-  if (!temp.is_open()) {
+-    throw std::runtime_error("Can't open " + file_path_);
+-  }
+-  if (!temp.good()) {
+-    temp.close();
+-    throw std::runtime_error("Can't read from " + file_path_);
+-  }
+-  temp.close();
++  // TODO: temp1_label as well!
++  sensor_name_ = sensor_name_from_temp_file_path(file_path_);
+ #endif
+ 
+   thread_ = [this] {
+@@ -93,7 +117,8 @@ auto waybar::modules::Temperature::update() -> void {
+   label_.set_markup(fmt::format(fmt::runtime(format), fmt::arg("temperatureC", temperature_c),
+                                 fmt::arg("temperatureF", temperature_f),
+                                 fmt::arg("temperatureK", temperature_k),
+-                                fmt::arg("icon", getIcon(temperature_c, "", max_temp))));
++                                fmt::arg("icon", getIcon(temperature_c, "", max_temp)),
++                                fmt::arg("name", sensor_name_)));
+   if (tooltipEnabled()) {
+     std::string tooltip_format = "{temperatureC}°C";
+     if (config_["tooltip-format"].isString()) {
+@@ -101,7 +126,8 @@ auto waybar::modules::Temperature::update() -> void {
+     }
+     label_.set_tooltip_text(fmt::format(
+         fmt::runtime(tooltip_format), fmt::arg("temperatureC", temperature_c),
+-        fmt::arg("temperatureF", temperature_f), fmt::arg("temperatureK", temperature_k)));
++        fmt::arg("temperatureF", temperature_f), fmt::arg("temperatureK", temperature_k),
++        fmt::arg("name", sensor_name_)));
+   }
+   // Call parent update
+   ALabel::update();
+@@ -123,18 +149,7 @@ float waybar::modules::Temperature::getTemperature() {
+   return temperature_c;
+ 
+ #else  // Linux
+-  std::ifstream temp(file_path_);
+-  if (!temp.is_open()) {
+-    throw std::runtime_error("Can't open " + file_path_);
+-  }
+-  std::string line;
+-  if (temp.good()) {
+-    getline(temp, line);
+-  } else {
+-    temp.close();
+-    throw std::runtime_error("Can't read from " + file_path_);
+-  }
+-  temp.close();
++  const std::string line = read_file_line(file_path_);
+   auto temperature_c = std::strtol(line.c_str(), nullptr, 10) / 1000.0;
+   return temperature_c;
+ #endif
+-- 
+2.47.1
+
+
+From fcc91ba4b01dfcc6b108e590bddaac2aa0a78557 Mon Sep 17 00:00:00 2001
+From: Skirmantas Kligys <Skirmantas.Kligys@gmail.com>
+Date: Sat, 16 Mar 2024 14:18:37 -0700
+Subject: [PATCH 2/2] Also include temp%d_label in sensor name.
+
+---
+ man/waybar-temperature.5.scd |  2 +-
+ src/modules/temperature.cpp  | 13 ++++++++++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/man/waybar-temperature.5.scd b/man/waybar-temperature.5.scd
+index 1839243c..b2820c7b 100644
+--- a/man/waybar-temperature.5.scd
++++ b/man/waybar-temperature.5.scd
+@@ -145,7 +145,7 @@ Addressed by *temperature*
+ 
+ *{temperatureK}*: Temperature in Kelvin.
+ 
+-*{name}*: Sensor name.
++*{name}*: Sensor name, may contain both the kernel module name and a measurement label.
+ 
+ # EXAMPLES
+ 
+diff --git a/src/modules/temperature.cpp b/src/modules/temperature.cpp
+index 8580d253..098ac3c8 100644
+--- a/src/modules/temperature.cpp
++++ b/src/modules/temperature.cpp
+@@ -33,7 +33,18 @@ auto sensor_name_from_temp_file_path(const std::string file_path) -> std::string
+   } else {
+     // hwmon configuration
+     const std::string name_path = p.replace_filename("name").string();
+-    return read_file_line(name_path);
++    const std::string name = read_file_line(name_path);
++
++    std::string label;
++    if (file_path.ends_with("_input")) {
++      std::string label_path = file_path;
++      const std::size_t len = label_path.length();
++      const std::size_t to_replace_len = std::string("_input").length();
++      label_path.replace(len - to_replace_len, to_replace_len, "_label");
++      label = read_file_line(label_path);
++    }
++
++    return label.empty() ? name : fmt::format("{} {}", name, label);
+   }
+ }
+ 
+-- 
+2.47.1
+

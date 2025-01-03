@@ -1,0 +1,139 @@
+diff --git a/include/modules/temperature.hpp b/include/modules/temperature.hpp
+index 918281be..63c91a33 100644
+--- a/include/modules/temperature.hpp
++++ b/include/modules/temperature.hpp
+@@ -20,6 +20,7 @@ class Temperature : public ALabel {
+   bool isCritical(uint16_t);
+   bool isWarning(uint16_t);
+ 
++  std::string sensor_name_;
+   std::string file_path_;
+   util::SleeperThread thread_;
+ };
+diff --git a/man/waybar-temperature.5.scd b/man/waybar-temperature.5.scd
+index 923d643d..b2820c7b 100644
+--- a/man/waybar-temperature.5.scd
++++ b/man/waybar-temperature.5.scd
+@@ -145,6 +145,8 @@ Addressed by *temperature*
+ 
+ *{temperatureK}*: Temperature in Kelvin.
+ 
++*{name}*: Sensor name, may contain both the kernel module name and a measurement label.
++
+ # EXAMPLES
+ 
+ ```
+diff --git a/src/modules/temperature.cpp b/src/modules/temperature.cpp
+index b1241ba3..4587fe28 100644
+--- a/src/modules/temperature.cpp
++++ b/src/modules/temperature.cpp
+@@ -7,6 +7,50 @@
+ #include <sys/sysctl.h>
+ #endif
+ 
++namespace {
++
++auto read_file_line(const std::string file_path) -> std::string {
++  // check if file_path_ can be used to retrieve the temperature
++  std::ifstream name_stream(file_path);
++  if (!name_stream.is_open()) {
++    throw std::runtime_error("Can't open " + file_path);
++  }
++  std::string line;
++  if (!name_stream.good()) {
++    name_stream.close();
++    throw std::runtime_error("Can't read from " + file_path);
++  }
++  getline(name_stream, line);
++  name_stream.close();
++  return line;
++}
++
++auto sensor_name_from_temp_file_path(const std::string file_path) -> std::string {
++  std::filesystem::path p(file_path);
++  if (p.filename() == "temp") {
++    // thermal-zone configuration
++    const std::string type_path = p.replace_filename("type").string();
++    return read_file_line(type_path);
++  } else {
++    // hwmon configuration
++    const std::string name_path = p.replace_filename("name").string();
++    const std::string name = read_file_line(name_path);
++
++    std::string label;
++    if (file_path.ends_with("_input")) {
++      std::string label_path = file_path;
++      const std::size_t len = label_path.length();
++      const std::size_t to_replace_len = std::string("_input").length();
++      label_path.replace(len - to_replace_len, to_replace_len, "_label");
++      label = read_file_line(label_path);
++    }
++
++    return label.empty() ? name : fmt::format("{} {}", name, label);
++  }
++}
++
++}
++
+ waybar::modules::Temperature::Temperature(const std::string& id, const Json::Value& config)
+     : ALabel(config, "temperature", id, "{temperatureC}°C", 10) {
+ #if defined(__FreeBSD__)
+@@ -45,16 +89,8 @@ waybar::modules::Temperature::Temperature(const std::string& id, const Json::Val
+     file_path_ = fmt::format("/sys/class/thermal/thermal_zone{}/temp", zone);
+   }
+ 
+-  // check if file_path_ can be used to retrieve the temperature
+-  std::ifstream temp(file_path_);
+-  if (!temp.is_open()) {
+-    throw std::runtime_error("Can't open " + file_path_);
+-  }
+-  if (!temp.good()) {
+-    temp.close();
+-    throw std::runtime_error("Can't read from " + file_path_);
+-  }
+-  temp.close();
++  // TODO: temp1_label as well!
++  sensor_name_ = sensor_name_from_temp_file_path(file_path_);
+ #endif
+ 
+   thread_ = [this] {
+@@ -93,7 +129,8 @@ auto waybar::modules::Temperature::update() -> void {
+   label_.set_markup(fmt::format(fmt::runtime(format), fmt::arg("temperatureC", temperature_c),
+                                 fmt::arg("temperatureF", temperature_f),
+                                 fmt::arg("temperatureK", temperature_k),
+-                                fmt::arg("icon", getIcon(temperature_c, "", max_temp))));
++                                fmt::arg("icon", getIcon(temperature_c, "", max_temp)),
++                                fmt::arg("name", sensor_name_)));
+   if (tooltipEnabled()) {
+     std::string tooltip_format = "{temperatureC}°C";
+     if (config_["tooltip-format"].isString()) {
+@@ -101,7 +138,8 @@ auto waybar::modules::Temperature::update() -> void {
+     }
+     label_.set_tooltip_text(fmt::format(
+         fmt::runtime(tooltip_format), fmt::arg("temperatureC", temperature_c),
+-        fmt::arg("temperatureF", temperature_f), fmt::arg("temperatureK", temperature_k)));
++        fmt::arg("temperatureF", temperature_f), fmt::arg("temperatureK", temperature_k),
++        fmt::arg("name", sensor_name_)));
+   }
+   // Call parent update
+   ALabel::update();
+@@ -127,18 +165,7 @@ float waybar::modules::Temperature::getTemperature() {
+       "sysctl hw.acpi.thermal.tz{}.temperature and dev.cpu.{}.temperature failed", zone, zone));
+ 
+ #else  // Linux
+-  std::ifstream temp(file_path_);
+-  if (!temp.is_open()) {
+-    throw std::runtime_error("Can't open " + file_path_);
+-  }
+-  std::string line;
+-  if (temp.good()) {
+-    getline(temp, line);
+-  } else {
+-    temp.close();
+-    throw std::runtime_error("Can't read from " + file_path_);
+-  }
+-  temp.close();
++  const std::string line = read_file_line(file_path_);
+   auto temperature_c = std::strtol(line.c_str(), nullptr, 10) / 1000.0;
+   return temperature_c;
+ #endif

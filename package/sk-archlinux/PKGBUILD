@@ -33,6 +33,8 @@ depends=(
     'libxkbcommon'
     'libwireplumber'
     'playerctl'
+    # SK added:
+    'gammastep'
 )
 makedepends=(
     'cmake'
@@ -50,9 +52,12 @@ optdepends=(
 )
 source=(
     "${pkgname}::git+https://github.com/Alexays/Waybar#commit=3a321d934dda790f8ce8dc76d8e545abe1ec3251"
+    'gammastep.patch'
 )
+
 sha256sums=(
     'c10e7de307e54177676430f5fbf217ae037f6408334247f3e163bbd97098c4d9'
+    'df52e13a360c1af70a487aa6768e1e6815835ad1b8e93a74b58e35fe978a939d'
 )
 
 pkgver() {
@@ -62,6 +67,7 @@ pkgver() {
 
 prepare() {
     cd "${srcdir}/${pkgname}"
+    patch --forward --strip=1 --input="${srcdir}/gammastep.patch"
 }
 
 build() {

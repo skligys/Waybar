@@ -145,6 +145,8 @@ Addressed by *temperature*
 
 *{temperatureK}*: Temperature in Kelvin.
 
+*{name}*: Sensor name.
+
 # EXAMPLES
 
 ```

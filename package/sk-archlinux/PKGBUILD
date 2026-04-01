@@ -57,6 +57,7 @@ source=(
     'ddcutil.patch'
     'gpu.patch'
     'temperature.patch'
+    'client.patch'
 )
 
 sha256sums=(
@@ -65,6 +66,7 @@ sha256sums=(
     '348ba9d8a1c7ded0e8a998b40a67e95a7a3f2a127050a846951d22d82ab6cde1'
     'bd2dfd4b0c32861d843426ec8a723d691e4211eb9da74a42ea2c10d5f9c44ae5'
     'a70d169043d32dbd919fb451faf543b7ac284128935f71477e0d45d2a654988b'
+    '79c9242d9e6cbd50ddebb2460c2beb12cb08b43c6b74910da7e8ac6b174a8fda'
 )
 
 pkgver() {
@@ -78,6 +80,7 @@ prepare() {
     patch --forward --strip=1 --input="${srcdir}/ddcutil.patch"
     patch --forward --strip=1 --input="${srcdir}/gpu.patch"
     patch --forward --strip=1 --input="${srcdir}/temperature.patch"
+    patch --forward --strip=1 --input="${srcdir}/client.patch"
 }
 
 build() {

@@ -62,7 +62,7 @@ class Bar : public sigc::trackable {
   static const std::string MODE_DEFAULT;
   static const std::string MODE_INVISIBLE;
 
-  Bar(struct waybar_output* w_output, const Json::Value&);
+  Bar(std::shared_ptr<struct waybar_output> w_output, const Json::Value&);
   Bar(const Bar&) = delete;
   ~Bar();
 
@@ -75,7 +75,7 @@ class Bar : public sigc::trackable {
   util::KillSignalAction getOnSigusr1Action();
   util::KillSignalAction getOnSigusr2Action();
 
-  struct waybar_output* output;
+  std::shared_ptr<struct waybar_output> output;
   Json::Value config;
   struct wl_surface* surface;
   bool visible = true;

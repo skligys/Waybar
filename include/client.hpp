@@ -27,7 +27,7 @@ class Client {
   struct wl_registry* registry = nullptr;
   struct zxdg_output_manager_v1* xdg_output_manager = nullptr;
   struct zwp_idle_inhibit_manager_v1* idle_inhibit_manager = nullptr;
-  std::vector<std::unique_ptr<Bar>> bars;
+  std::list<std::unique_ptr<Bar>> bars;
   Config config;
   std::string bar_id;
 
@@ -35,10 +35,10 @@ class Client {
   Client() = default;
   const std::string getStyle(const std::string& style, std::optional<Appearance> appearance);
   void bindInterfaces();
-  void handleOutput(struct waybar_output& output);
+  void handleOutput(std::shared_ptr<struct waybar_output> output);
   auto setupCss(const std::string& css_file) -> void;
-  struct waybar_output& getOutput(void*);
-  std::vector<Json::Value> getOutputConfigs(struct waybar_output& output);
+  std::shared_ptr<struct waybar_output> getOutput(void*);
+  std::vector<Json::Value> getOutputConfigs(std::shared_ptr<struct waybar_output> output);
 
   static void handleGlobal(void* data, struct wl_registry* registry, uint32_t name,
                            const char* interface, uint32_t version);
@@ -53,7 +53,7 @@ class Client {
   Glib::RefPtr<Gtk::StyleContext> style_context_;
   Glib::RefPtr<Gtk::CssProvider> css_provider_;
   std::unique_ptr<Portal> portal;
-  std::list<struct waybar_output> outputs_;
+  std::list<std::shared_ptr<struct waybar_output>> outputs_;
   std::unique_ptr<CssReloadHelper> m_cssReloadHelper;
   std::string m_cssFile;
   sigc::connection monitor_added_connection_;

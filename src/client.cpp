@@ -47,7 +47,7 @@ void waybar::Client::handleGlobalRemove(void* data, struct wl_registry* /*regist
   // Nothing here
 }
 
-void waybar::Client::handleOutput(struct waybar_output& output) {
+void waybar::Client::handleOutput(std::shared_ptr<struct waybar_output> output) {
   static const struct zxdg_output_v1_listener xdgOutputListener = {
       .logical_position = [](void*, struct zxdg_output_v1*, int32_t, int32_t) {},
       .logical_size = [](void*, struct zxdg_output_v1*, int32_t, int32_t) {},
@@ -56,28 +56,29 @@ void waybar::Client::handleOutput(struct waybar_output& output) {
       .description = &handleOutputDescription,
   };
   // owned by output->monitor; no need to destroy
-  auto* wl_output = gdk_wayland_monitor_get_wl_output(output.monitor->gobj());
-  output.xdg_output.reset(zxdg_output_manager_v1_get_xdg_output(xdg_output_manager, wl_output));
-  zxdg_output_v1_add_listener(output.xdg_output.get(), &xdgOutputListener, &output);
+  auto* wl_output = gdk_wayland_monitor_get_wl_output(output->monitor->gobj());
+  output->xdg_output.reset(zxdg_output_manager_v1_get_xdg_output(xdg_output_manager, wl_output));
+  // Pass the raw pointer as user data so getOutput() can match it later.
+  zxdg_output_v1_add_listener(output->xdg_output.get(), &xdgOutputListener, output.get());
 }
 
-struct waybar::waybar_output& waybar::Client::getOutput(void* addr) {
+std::shared_ptr<struct waybar::waybar_output> waybar::Client::getOutput(void* addr) {
   auto it = std::find_if(outputs_.begin(), outputs_.end(),
-                         [&addr](const auto& output) { return &output == addr; });
+                         [&addr](const auto& output) { return output.get() == addr; });
   if (it == outputs_.end()) {
     throw std::runtime_error("Unable to find valid output");
   }
   return *it;
 }
 
-std::vector<Json::Value> waybar::Client::getOutputConfigs(struct waybar_output& output) {
-  return config.getOutputConfigs(output.name, output.identifier);
+std::vector<Json::Value> waybar::Client::getOutputConfigs(std::shared_ptr<struct waybar_output> output) {
+  return config.getOutputConfigs(output->name, output->identifier);
 }
 
 void waybar::Client::handleOutputDone(void* data, struct zxdg_output_v1* /*xdg_output*/) {
   auto* client = waybar::Client::inst();
   try {
-    auto& output = client->getOutput(data);
+    auto output = client->getOutput(data);
     /**
      * Multiple .done events may arrive in batch. In this case libwayland would queue
      * xdg_output.destroy and dispatch all pending events, triggering this callback several times
@@ -87,14 +88,14 @@ void waybar::Client::handleOutputDone(void* data, struct zxdg_output_v1* /*xdg_o
      * All the properties we care about are immutable so it's safe to delete the xdg_output object
      * on the first event and use the ptr value to check that the callback was already invoked.
      */
-    if (output.xdg_output) {
-      output.xdg_output.reset();
-      spdlog::debug("Output detection done: {} ({})", output.name, output.identifier);
+    if (output->xdg_output) {
+      output->xdg_output.reset();
+      spdlog::debug("Output detection done: {} ({})", output->name, output->identifier);
 
       auto configs = client->getOutputConfigs(output);
       if (!configs.empty()) {
         for (const auto& config : configs) {
-          client->bars.emplace_back(std::make_unique<Bar>(&output, config));
+          client->bars.emplace_back(std::make_unique<Bar>(output, config));
         }
       }
     }
@@ -107,8 +108,8 @@ void waybar::Client::handleOutputName(void* data, struct zxdg_output_v1* /*xdg_o
                                       const char* name) {
   auto* client = waybar::Client::inst();
   try {
-    auto& output = client->getOutput(data);
-    output.name = name;
+    auto output = client->getOutput(data);
+    output->name = name;
   } catch (const std::exception& e) {
     spdlog::warn("caught exception in zxdg_output_v1_listener::name: {}", e.what());
   }
@@ -118,20 +119,21 @@ void waybar::Client::handleOutputDescription(void* data, struct zxdg_output_v1* 
                                              const char* description) {
   auto* client = waybar::Client::inst();
   try {
-    auto& output = client->getOutput(data);
+    auto output = client->getOutput(data);
 
     // Description format: "identifier (name)"
     auto s = std::string(description);
     auto pos = s.find(" (");
-    output.identifier = pos != std::string::npos ? s.substr(0, pos) : s;
+    output->identifier = pos != std::string::npos ? s.substr(0, pos) : s;
   } catch (const std::exception& e) {
     spdlog::warn("caught exception in zxdg_output_v1_listener::description: {}", e.what());
   }
 }
 
 void waybar::Client::handleMonitorAdded(Glib::RefPtr<Gdk::Monitor> monitor) {
-  auto& output = outputs_.emplace_back();
-  output.monitor = std::move(monitor);
+  auto output = std::make_shared<struct waybar_output>();
+  output->monitor = std::move(monitor);
+  outputs_.emplace_back(output);
   handleOutput(output);
 }
 
@@ -159,7 +161,7 @@ void waybar::Client::handleDeferredMonitorRemoval(Glib::RefPtr<Gdk::Monitor> mon
       ++it;
     }
   }
-  outputs_.remove_if([&monitor](const auto& output) { return output.monitor == monitor; });
+  outputs_.remove_if([&monitor](const auto& output) { return output->monitor == monitor; });
 }
 
 const std::string waybar::Client::getStyle(const std::string& style,
@@ -241,7 +243,8 @@ void waybar::Client::bindInterfaces() {
   monitor_added_connection_.disconnect();
   monitor_removed_connection_.disconnect();
 
-  // Clear stale outputs from previous run
+  // Clear stale bars and outputs from previous run.
+  bars.clear();
   outputs_.clear();
 
   // add existing outputs and subscribe to updates

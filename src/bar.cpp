@@ -131,8 +131,8 @@ void from_json(const Json::Value& j, std::map<Key, Value>& m) {
 
 };  // namespace waybar
 
-waybar::Bar::Bar(struct waybar_output* w_output, const Json::Value& w_config)
-    : output(w_output),
+waybar::Bar::Bar(std::shared_ptr<struct waybar_output> w_output, const Json::Value& w_config)
+    : output(std::move(w_output)),
       config(w_config),
       surface(nullptr),
       window{Gtk::WindowType::WINDOW_TOPLEVEL},
